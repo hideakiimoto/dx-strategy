@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JUST.DB - 見積シミュレーター</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ==========================================
+       CSS Custom Properties (Design Tokens)
+       ========================================== */
+    :root {
+      --navy: #1a3a5c;
+      --navy-light: #2a5a8c;
+      --navy-dark: #0f2440;
+      --orange: #f07900;
+      --orange-light: #fff3e6;
+      --orange-hover: #d96b00;
+      --bg: #f5f6fa;
+      --card-bg: #ffffff;
+      --text-primary: #2c3e50;
+      --text-secondary: #6c7a89;
+      --text-muted: #95a5a6;
+      --success: #27ae60;
+      --border: #e1e8ef;
+      --shadow: 0 2px 12px rgba(26, 58, 92, 0.08);
+      --shadow-lg: 0 8px 32px rgba(26, 58, 92, 0.12);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --font: 'Noto Sans JP', sans-serif;
+      --transition: all 0.2s ease;
+    }
+
+    /* ==========================================
+       Reset & Base
+       ========================================== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text-primary); line-height: 1.6; min-height: 100vh; }
+
+    /* ==========================================
+       Header
+       ========================================== */
+    .app-header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      color: #fff; padding: 20px 32px; display: flex; align-items: center;
+      justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-brand { display: flex; align-items: center; gap: 16px; }
+    .header-logo { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.02em; }
+    .header-logo span { color: var(--orange); }
+    .header-subtitle { font-size: 0.875rem; opacity: 0.85; font-weight: 400; }
+    .header-date { font-size: 0.8rem; opacity: 0.7; }
+
+    /* ==========================================
+       Layout
+       ========================================== */
+    .app-layout {
+      display: grid; grid-template-columns: 1fr 460px; gap: 28px;
+      max-width: 1440px; margin: 0 auto; padding: 28px 32px 120px;
+    }
+    .configurator { display: flex; flex-direction: column; gap: 20px; }
+    .results-panel {
+      position: sticky; top: 88px; height: fit-content;
+      max-height: calc(100vh - 108px); overflow-y: auto;
+    }
+
+    /* ==========================================
+       Config Sections
+       ========================================== */
+    .config-section {
+      background: var(--card-bg); border-radius: var(--radius); padding: 24px;
+      box-shadow: var(--shadow); border: 1px solid var(--border); transition: var(--transition);
+    }
+    .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .section-icon {
+      width: 36px; height: 36px; border-radius: var(--radius-sm);
+      background: var(--orange-light); display: flex; align-items: center;
+      justify-content: center; font-size: 1.1rem; flex-shrink: 0;
+    }
+    .section-title { font-size: 1rem; font-weight: 700; color: var(--navy); }
+    .section-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+    .section-hint {
+      font-size: 0.8rem; color: var(--text-secondary); background: var(--bg);
+      padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; line-height: 1.5;
+    }
+
+    /* ==========================================
+       License Stepper
+       ========================================== */
+    .license-stepper { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 16px; }
+    .stepper-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--navy);
+      background: #fff; color: var(--navy); font-size: 1.3rem; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: var(--transition); user-select: none;
+    }
+    .stepper-btn:hover:not(:disabled) { background: var(--navy); color: #fff; }
+    .stepper-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .stepper-value {
+      font-size: 2.5rem; font-weight: 700; color: var(--navy); min-width: 100px;
+      text-align: center; cursor: text; border: 2px solid transparent;
+      border-radius: var(--radius-sm); padding: 4px 8px; transition: var(--transition);
+    }
+    .stepper-value:focus { outline: none; border-color: var(--orange); background: var(--orange-light); }
+    .stepper-unit { font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; }
+    .license-slider-wrap { padding: 0 4px; margin-bottom: 12px; }
+    .license-slider {
+      width: 100%; height: 6px; -webkit-appearance: none; appearance: none;
+      background: var(--border); border-radius: 3px; outline: none; cursor: pointer;
+    }
+    .license-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: var(--orange); cursor: pointer; box-shadow: 0 2px 6px rgba(240,121,0,0.3);
+      transition: transform 0.15s ease;
+    }
+    .license-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .license-slider::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--orange);
+      cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(240,121,0,0.3);
+    }
+    .license-cost { text-align: center; font-size: 0.9rem; color: var(--text-secondary); }
+    .license-cost strong { color: var(--orange); font-size: 1.1rem; }
+
+    /* ==========================================
+       Package Cards
+       ========================================== */
+    .package-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .package-card {
+      border: 2px solid var(--border); border-radius: var(--radius); padding: 18px;
+      cursor: pointer; transition: var(--transition); position: relative;
+    }
+    .package-card:hover { border-color: var(--navy-light); box-shadow: var(--shadow); }
+    .package-card.selected { border-color: var(--orange); background: var(--orange-light); box-shadow: 0 0 0 3px rgba(240,121,0,0.15); }
+    .package-card-check {
+      position: absolute; top: 10px; right: 10px; width: 22px; height: 22px;
+      border-radius: 50%; border: 2px solid var(--border); display: flex;
+      align-items: center; justify-content: center; font-size: 0.7rem; transition: var(--transition);
+    }
+    .package-card.selected .package-card-check { background: var(--orange); border-color: var(--orange); color: #fff; }
+    .package-name { font-weight: 700; font-size: 0.85rem; color: var(--navy); margin-bottom: 6px; }
+    .package-price { font-size: 1.15rem; font-weight: 700; color: var(--orange); margin-bottom: 10px; }
+    .package-price .price-unit { font-size: 0.7rem; font-weight: 500; color: var(--text-secondary); }
+    .package-features { list-style: none; font-size: 0.75rem; color: var(--text-secondary); }
+    .package-features li { padding: 2px 0; padding-left: 16px; position: relative; }
+    .package-features li::before { content: '✓'; position: absolute; left: 0; color: var(--success); font-weight: 700; }
+    .package-note {
+      margin-top: 10px; padding: 6px 10px; background: #fef3cd; border-radius: var(--radius-sm);
+      font-size: 0.7rem; color: #856404; display: none;
+    }
+    .package-card.selected .package-note { display: block; }
+
+    /* ==========================================
+       Comparison Table (collapsible)
+       ========================================== */
+    .comparison-toggle {
+      margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;
+    }
+    .comparison-toggle summary {
+      padding: 10px 14px; font-size: 0.85rem; font-weight: 700; color: var(--navy);
+      cursor: pointer; background: var(--bg); list-style: none; display: flex;
+      align-items: center; gap: 6px;
+    }
+    .comparison-toggle summary::before { content: '▶'; font-size: 0.65rem; transition: transform 0.2s; }
+    .comparison-toggle[open] summary::before { transform: rotate(90deg); }
+    .comparison-table {
+      width: 100%; border-collapse: collapse; font-size: 0.75rem;
+    }
+    .comparison-table th, .comparison-table td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: center;
+    }
+    .comparison-table th { background: var(--navy); color: #fff; font-weight: 500; font-size: 0.7rem; }
+    .comparison-table th:first-child { text-align: left; }
+    .comparison-table td:first-child { text-align: left; font-weight: 500; color: var(--text-primary); }
+    .comparison-table tr:last-child td { border-bottom: none; }
+    .comparison-table tr:nth-child(even) { background: #f8f9fd; }
+
+    /* ==========================================
+       Phase Slider Rows (Construction Cost)
+       ========================================== */
+    .phase-list { display: flex; flex-direction: column; gap: 14px; }
+    .phase-row {
+      padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: #fff; transition: var(--transition);
+    }
+    .phase-row.covered-by-pack {
+      background: #f8f9fd; border-color: #d0d8e0;
+    }
+    .phase-row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .phase-name { font-size: 0.85rem; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 6px; }
+    .phase-subtotal { font-size: 0.9rem; font-weight: 700; color: var(--orange); }
+    .phase-subtotal.in-pack { color: var(--text-muted); text-decoration: line-through; font-size: 0.8rem; }
+    .phase-pack-badge {
+      display: none; font-size: 0.6rem; background: var(--navy); color: #fff;
+      padding: 2px 8px; border-radius: 10px; font-weight: 500;
+    }
+    .phase-row.covered-by-pack .phase-pack-badge { display: inline-block; }
+    .phase-meta { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .phase-role-select {
+      font-family: var(--font); font-size: 0.72rem; padding: 3px 6px;
+      border: 1px solid var(--border); border-radius: 4px; background: #fff;
+      color: var(--text-primary); cursor: pointer; outline: none; transition: var(--transition);
+    }
+    .phase-role-select:focus { border-color: var(--orange); }
+    .phase-rate-display { font-size: 0.7rem; color: var(--text-muted); }
+    .phase-slider-row { display: flex; align-items: center; gap: 10px; }
+    .phase-slider {
+      flex: 1; height: 5px; -webkit-appearance: none; appearance: none;
+      background: var(--border); border-radius: 3px; outline: none; cursor: pointer;
+    }
+    .phase-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+      background: var(--navy); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .phase-slider::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%; background: var(--navy);
+      cursor: pointer; border: none;
+    }
+    .phase-hours { font-size: 0.85rem; font-weight: 700; color: var(--navy); min-width: 50px; text-align: right; }
+    .construction-total-bar {
+      margin-top: 16px; padding: 14px 16px; background: var(--navy); color: #fff;
+      border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;
+    }
+    .construction-total-label { font-size: 0.85rem; font-weight: 500; }
+    .construction-total-value { font-size: 1.2rem; font-weight: 700; }
+
+    /* ==========================================
+       Custom Work Section
+       ========================================== */
+    .custom-work-header {
+      margin-top: 18px; padding: 10px 0 8px; border-top: 2px dashed var(--border);
+      font-size: 0.85rem; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 6px;
+    }
+    .custom-work-note {
+      font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;
+      padding: 6px 10px; background: #fef3cd; border-radius: var(--radius-sm);
+    }
+
+    /* ==========================================
+       Support Pack
+       ========================================== */
+    .support-toggle-wrap { margin-bottom: 14px; }
+    .support-toggle-label {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      font-size: 0.875rem; font-weight: 500;
+    }
+    .support-toggle-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--orange); cursor: pointer; }
+    .support-pack-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .support-pack-card {
+      border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 14px;
+      cursor: pointer; transition: var(--transition); text-align: center;
+    }
+    .support-pack-card:hover { border-color: var(--navy-light); }
+    .support-pack-card.selected { border-color: var(--orange); background: var(--orange-light); }
+    .support-pack-name { font-size: 0.8rem; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+    .support-pack-price { font-size: 1rem; font-weight: 700; color: var(--orange); }
+    .support-pack-detail { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
+    .support-pack-unit { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+    .support-pack-area { display: none; }
+    .support-pack-area.visible { display: block; }
+    .support-note {
+      margin-top: 10px; font-size: 0.7rem; color: var(--text-muted); line-height: 1.6;
+      padding: 8px 10px; background: var(--bg); border-radius: var(--radius-sm);
+    }
+    .support-recommendation {
+      margin-top: 10px; padding: 10px 12px; background: #e8f5e9; border-radius: var(--radius-sm);
+      font-size: 0.75rem; color: #2e7d32; font-weight: 500;
+    }
+
+    /* ==========================================
+       Contract Period
+       ========================================== */
+    .period-segments {
+      display: flex; border-radius: var(--radius-sm); overflow: hidden; border: 2px solid var(--navy);
+    }
+    .period-btn {
+      flex: 1; padding: 12px; border: none; background: #fff; color: var(--navy);
+      font-family: var(--font); font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: var(--transition); text-align: center;
+    }
+    .period-btn:not(:last-child) { border-right: 2px solid var(--navy); }
+    .period-btn:hover:not(.active) { background: #eef2f7; }
+    .period-btn.active { background: var(--navy); color: #fff; }
+    .contract-calc { margin-top: 14px; text-align: center; font-size: 0.85rem; color: var(--text-secondary); }
+    .contract-calc strong { font-size: 1.05rem; color: var(--navy); }
+
+    /* ==========================================
+       Results Panel
+       ========================================== */
+    .results-card {
+      background: var(--card-bg); border-radius: var(--radius);
+      box-shadow: var(--shadow-lg); border: 1px solid var(--border); overflow: hidden;
+    }
+    .results-header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      color: #fff; padding: 18px 24px;
+    }
+    .results-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .results-date { font-size: 0.75rem; opacity: 0.75; }
+
+    .result-category {
+      padding: 10px 24px; background: var(--bg); font-size: 0.75rem;
+      font-weight: 700; color: var(--navy); letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .total-section { padding: 20px 24px; text-align: center; border-bottom: 1px solid var(--border); }
+    .total-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; }
+    .total-amount { font-size: 2.2rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+    .total-tax { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+    .total-tax strong { color: var(--text-primary); font-size: 1rem; }
+
+    .grand-total-section {
+      padding: 20px 24px; text-align: center; border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, #f8f9fd 0%, #fff3e6 100%);
+    }
+    .grand-total-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; }
+    .grand-total-amount { font-size: 2rem; font-weight: 700; color: var(--orange); line-height: 1.2; }
+    .grand-total-breakdown { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
+
+    .chart-section { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .chart-container { max-width: 240px; margin: 0 auto; }
+
+    /* ==========================================
+       Detail Table
+       ========================================== */
+    .detail-section { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+    .detail-section-title {
+      font-size: 0.75rem; font-weight: 700; color: var(--navy);
+      margin-bottom: 10px; letter-spacing: 0.05em;
+    }
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .detail-table th {
+      text-align: left; font-weight: 500; color: var(--text-muted);
+      padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 0.7rem;
+    }
+    .detail-table th:last-child { text-align: right; }
+    .detail-table td { padding: 6px 0; border-bottom: 1px solid #f0f2f5; }
+    .detail-table td:last-child { text-align: right; font-weight: 500; }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .detail-table .subtotal-row { font-weight: 700; }
+    .detail-table .subtotal-row td { border-top: 2px solid var(--navy); padding-top: 8px; }
+    .detail-table .tbd { color: var(--text-muted); font-style: italic; }
+    .detail-table .section-label td {
+      font-weight: 700; color: var(--navy); font-size: 0.72rem;
+      padding-top: 12px; border-bottom: 1px solid var(--border);
+    }
+
+    /* ==========================================
+       Notes
+       ========================================== */
+    .notes-section { padding: 14px 24px; border-bottom: 1px solid var(--border); }
+    .notes-section .detail-section-title { margin-bottom: 6px; }
+    .notes-category { font-size: 0.7rem; font-weight: 700; color: var(--navy); margin-top: 8px; margin-bottom: 4px; }
+    .notes-list { font-size: 0.68rem; color: var(--text-muted); line-height: 1.7; list-style: none; }
+    .notes-list li { padding-left: 12px; position: relative; }
+    .notes-list li::before { content: '・'; position: absolute; left: 0; }
+
+    /* ==========================================
+       Action Buttons
+       ========================================== */
+    .action-bar { padding: 14px 24px; display: flex; gap: 8px; }
+    .btn {
+      flex: 1; padding: 10px 16px; border-radius: var(--radius-sm); border: none;
+      font-family: var(--font); font-size: 0.8rem; font-weight: 700; cursor: pointer;
+      transition: var(--transition); display: flex; align-items: center;
+      justify-content: center; gap: 6px;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-hover); }
+    .btn-secondary { background: var(--navy); color: #fff; }
+    .btn-secondary:hover { background: var(--navy-light); }
+    .btn-outline { background: #fff; color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-outline:hover { background: var(--bg); color: var(--text-primary); }
+    .btn-icon { font-size: 1rem; }
+
+    .copy-feedback {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--navy); color: #fff; padding: 10px 24px; border-radius: var(--radius-sm);
+      font-size: 0.85rem; font-weight: 500; box-shadow: var(--shadow-lg);
+      opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 200;
+    }
+    .copy-feedback.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ==========================================
+       Mobile Total Bar
+       ========================================== */
+    .mobile-total-bar {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--navy); color: #fff; padding: 14px 24px;
+      z-index: 100; box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+    }
+    .mobile-total-inner { display: flex; align-items: center; justify-content: space-between; max-width: 600px; margin: 0 auto; }
+    .mobile-total-label { font-size: 0.75rem; opacity: 0.8; }
+    .mobile-total-amount { font-size: 1.3rem; font-weight: 700; }
+
+    /* ==========================================
+       Responsive
+       ========================================== */
+    @media (max-width: 1023px) {
+      .app-layout { grid-template-columns: 1fr; padding: 20px 16px 140px; gap: 20px; }
+      .results-panel { position: static; max-height: none; }
+      .mobile-total-bar { display: block; }
+    }
+    @media (max-width: 767px) {
+      .app-header { padding: 14px 16px; flex-direction: column; align-items: flex-start; gap: 4px; }
+      .header-date { display: none; }
+      .config-section { padding: 18px 16px; }
+      .package-grid { grid-template-columns: 1fr; }
+      .support-pack-grid { grid-template-columns: 1fr; }
+      .stepper-value { font-size: 2rem; }
+      .total-amount { font-size: 1.8rem; }
+      .grand-total-amount { font-size: 1.6rem; }
+      .action-bar { flex-direction: column; }
+    }
+
+    /* ==========================================
+       Quote Sheet (御見積書) Overlay
+       ========================================== */
+    .quote-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(0,0,0,0.5); overflow-y: auto; display: none;
+    }
+    .quote-overlay.visible { display: block; }
+    .quote-overlay-controls {
+      position: sticky; top: 0; z-index: 10001; background: #333;
+      color: #fff; padding: 10px 20px; display: flex; gap: 12px;
+      justify-content: flex-end; align-items: center;
+    }
+    .quote-overlay-controls button {
+      font-family: var(--font); font-size: 0.85rem; font-weight: 700;
+      padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer;
+    }
+    #quotePrint { background: var(--orange); color: #fff; }
+    #quotePrint:hover { background: var(--orange-hover); }
+    #quoteClose { background: #666; color: #fff; }
+    #quoteClose:hover { background: #888; }
+
+    .quote-page {
+      width: 210mm; min-height: 297mm; margin: 20px auto;
+      padding: 18mm 15mm 15mm 15mm; background: #fff;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      font-family: 'Noto Sans JP', sans-serif; font-size: 10pt;
+      color: #333; line-height: 1.6;
+    }
+    .quote-title {
+      text-align: center; font-size: 18pt; font-weight: 700;
+      letter-spacing: 0.5em; margin-bottom: 24px; color: #000;
+      border-bottom: 2px solid #000; display: inline-block;
+      padding-bottom: 4px; margin-left: auto; margin-right: auto;
+    }
+    .quote-title-wrap { text-align: center; margin-bottom: 24px; }
+
+    /* Row 1: Customer name (left) + Date/Number (right) */
+    .quote-header-row {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .quote-customer-name {
+      font-size: 14pt; font-weight: 700; border-bottom: 2px solid #000;
+      padding-bottom: 4px; display: inline-block; min-width: 220px;
+      outline: none;
+    }
+    .quote-customer-name:focus { background: #fffbe6; }
+    .quote-header-meta { text-align: right; font-size: 9pt; line-height: 2; }
+    .quote-header-meta td:first-child { padding-right: 16px; text-align: left; }
+    .quote-header-meta td:last-child { text-align: right; }
+
+    /* Row 2: Company info (right-aligned) with stamp */
+    .quote-company-row {
+      display: flex; justify-content: flex-end; margin-bottom: 16px;
+    }
+    .quote-company-block {
+      text-align: left; font-size: 9pt; line-height: 1.8;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .quote-company-text {}
+    .quote-company-name { font-size: 11pt; font-weight: 700; }
+    .quote-stamp-area {
+      width: 64px; height: 64px; border: 1px dashed #ccc;
+      border-radius: 50%; flex-shrink: 0;
+    }
+
+    /* "下記の通り..." + 件名 + 見積金額 */
+    .quote-greeting {
+      font-size: 9pt; margin-bottom: 12px; color: #000;
+    }
+    .quote-subject-row {
+      display: flex; align-items: flex-start; margin-bottom: 4px; font-size: 10pt;
+    }
+    .quote-subject-label { font-weight: 700; min-width: 40px; flex-shrink: 0; }
+    .quote-subject-value { font-weight: 500; }
+    .quote-amount-row {
+      display: flex; align-items: baseline; margin-bottom: 20px; font-size: 10pt;
+      border-bottom: 1px solid #000; padding-bottom: 6px;
+    }
+    .quote-amount-label { font-weight: 700; min-width: 60px; flex-shrink: 0; }
+    .quote-amount-value { font-size: 18pt; font-weight: 700; letter-spacing: 0.05em; }
+    .quote-amount-yen { font-size: 11pt; font-weight: 700; margin-left: 4px; }
+
+    /* Section labels */
+    .quote-section-label {
+      font-size: 10pt; font-weight: 700; margin: 18px 0 6px; color: #000;
+    }
+
+    /* Tables - 4 column: 摘要 / 数量 / 単価 / 明細金額 */
+    .quote-table {
+      width: 100%; border-collapse: collapse; font-size: 9pt;
+      margin-bottom: 0; border: 2px solid #333;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .quote-table th {
+      background: #f5f5f5; padding: 6px 8px; font-weight: 700; text-align: center;
+      border-bottom: 2px solid #333; border-left: 1px solid #bbb;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .quote-table th:first-child { border-left: none; }
+    .quote-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #ddd; border-left: 1px solid #bbb;
+    }
+    .quote-table td:first-child { border-left: none; }
+    .quote-table .col-item { text-align: left; }
+    .quote-table .col-qty { text-align: right; }
+    .quote-table .col-price { text-align: right; }
+    .quote-table .col-amount { text-align: right; }
+    .quote-table tbody tr { min-height: 28px; }
+    .quote-table .empty-row td { height: 28px; border-bottom: 1px solid #ddd; }
+
+    /* tfoot: 小計/消費税/合計 - 同テーブル内で列幅完全一致 */
+    .quote-table tfoot tr:first-child td { border-top: 2px solid #333; }
+    .quote-table tfoot td { padding: 5px 8px; border-bottom: 1px solid #bbb; border-left: 1px solid #bbb; }
+    .quote-table tfoot td:first-child { border-left: none; }
+    .quote-table tfoot .sum-label-cell { text-align: right; font-weight: 500; }
+    .quote-table tfoot .sum-value-cell { text-align: right; }
+    .quote-table tfoot .sum-total td { font-weight: 700; border-bottom: 2px solid #333; }
+    .quote-table tfoot .sum-total .sum-value-cell { font-size: 11pt; }
+    .quote-table tfoot .sum-breakdown td {
+      border-bottom: none; font-size: 8pt; color: #555; padding: 2px 8px;
+    }
+
+    /* Grand total between tables */
+    .quote-grand-total-row {
+      display: flex; justify-content: space-between; align-items: center;
+      border: 2px solid #333; padding: 8px 16px;
+      margin: 16px 0 4px; font-size: 12pt; font-weight: 700;
+    }
+    .quote-grand-breakdown {
+      font-size: 8pt; color: #666; text-align: right; margin-bottom: 16px;
+    }
+
+    /* Delivery info */
+    .quote-delivery-info {
+      font-size: 9pt; margin: 12px 0 8px; line-height: 1.8;
+    }
+    .quote-delivery-info span { margin-right: 24px; }
+
+    /* Remarks - bordered box */
+    .quote-remarks {
+      margin-top: 16px; font-size: 8pt; color: #333;
+      border: 2px solid #333; padding: 10px 14px;
+    }
+    .quote-remarks-title { font-weight: 700; font-size: 9pt; color: #000; margin-bottom: 4px; }
+    .quote-remarks .remark-line { line-height: 1.8; }
+
+    /* Page number */
+    .quote-page-number {
+      text-align: center; font-size: 8pt; color: #666; margin-top: 20px;
+    }
+
+    /* ==========================================
+       Print Styles
+       ========================================== */
+    @media print {
+      body > *:not(#quoteSheet) { display: none !important; }
+      #quoteSheet.quote-overlay {
+        display: block !important; position: static !important;
+        background: none !important; overflow: visible !important;
+      }
+      .quote-overlay-controls { display: none !important; }
+      .quote-page {
+        margin: 0; padding: 15mm; box-shadow: none; width: 100%; min-height: auto;
+      }
+      .quote-table, .quote-table th, .quote-table td, .quote-table tfoot td {
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+      .mobile-total-bar { display: none !important; }
+      .copy-feedback { display: none !important; }
+      @page { size: A4; margin: 0; }
+    }
+
+    /* Scrollbar */
+    .results-panel::-webkit-scrollbar { width: 4px; }
+    .results-panel::-webkit-scrollbar-track { background: transparent; }
+    .results-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="header-logo">JUST<span>.DB</span></div>
+      <div class="header-subtitle">見積シミュレーター</div>
+    </div>
+    <div class="header-date" id="headerDate"></div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="app-layout">
+
+    <!-- Left: Configurator -->
+    <section class="configurator">
+
+      <!-- ① License Settings -->
+      <div class="config-section">
+        <div class="section-header">
+          <div class="section-icon">👥</div>
+          <div>
+            <div class="section-title">ライセンス設定</div>
+            <div class="section-subtitle">同時ログインライセンス</div>
+          </div>
+        </div>
+        <div class="section-hint">
+          全員が常時使わない場合、登録ユーザー数より少なく設定できます。5ライセンス単位での購入となります。
+        </div>
+        <div class="license-stepper">
+          <button class="stepper-btn" id="licenseMinus" aria-label="5減らす">−</button>
+          <div>
+            <div class="stepper-value" id="licenseValue" tabindex="0" role="spinbutton" aria-label="ライセンス数" aria-valuemin="5" aria-valuemax="100" contenteditable="true">10</div>
+            <div class="stepper-unit">ライセンス</div>
+          </div>
+          <button class="stepper-btn" id="licensePlus" aria-label="5増やす">＋</button>
+        </div>
+        <div class="license-slider-wrap">
+          <input type="range" class="license-slider" id="licenseSlider" min="5" max="100" step="5" value="10">
+        </div>
+        <div class="license-cost" id="licenseCostDisplay"></div>
+      </div>
+
+      <!-- ② Package Selection -->
+      <div class="config-section">
+        <div class="section-header">
+          <div class="section-icon">📦</div>
+          <div>
+            <div class="section-title">パッケージ選択</div>
+            <div class="section-subtitle">1テナントあたり / 月額（税別）</div>
+          </div>
+        </div>
+
+        <div class="package-grid">
+          <div class="package-card selected" data-package="none">
+            <div class="package-card-check">✓</div>
+            <div class="package-name">パッケージなし</div>
+            <div class="package-price">0円 <span class="price-unit">/月</span></div>
+            <ul class="package-features">
+              <li>基本機能のみ</li>
+            </ul>
+          </div>
+
+          <div class="package-card" data-package="basic">
+            <div class="package-card-check">✓</div>
+            <div class="package-name">ベーシック</div>
+            <div class="package-price">24,000円 <span class="price-unit">/月</span></div>
+            <ul class="package-features">
+              <li>社内DB連携</li>
+              <li>全文検索</li>
+              <li>サンドボックス</li>
+              <li>AI-OCR（初回100回試用）</li>
+            </ul>
+          </div>
+
+          <div class="package-card" data-package="standard">
+            <div class="package-card-check">✓</div>
+            <div class="package-name">スタンダード</div>
+            <div class="package-price">74,000円 <span class="price-unit">/月</span></div>
+            <ul class="package-features">
+              <li>AI-OCR（毎月1,000CR）</li>
+              <li>大規模集計（2,000万件）</li>
+              <li>自動バックアップ（35日分）</li>
+              <li>ベーシック全機能含む</li>
+            </ul>
+            <div class="package-note">※ 2026年2月17日提供開始。ベーシックからの差額は50,000円/月。</div>
+          </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <details class="comparison-toggle">
+          <summary>パッケージ比較表を見る</summary>
+          <table class="comparison-table">
+            <thead>
+              <tr><th>観点</th><th>なし</th><th>ベーシック</th><th>スタンダード</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>月額（税別）</td><td>0円</td><td>24,000円</td><td>74,000円</td></tr>
+              <tr><td>バックアップ</td><td>手動</td><td>手動</td><td>35日分自動</td></tr>
+              <tr><td>集計上限</td><td>標準</td><td>5万件</td><td>2,000万件</td></tr>
+              <tr><td>AI-OCR</td><td>なし</td><td>試用100回</td><td>毎月1,000CR</td></tr>
+              <tr><td>テーブル内件数</td><td>標準</td><td>500万件</td><td>2,000万件</td></tr>
+            </tbody>
+          </table>
+        </details>
+      </div>
+
+      <!-- ③ Construction Cost (Phase-based) -->
+      <div class="config-section">
+        <div class="section-header">
+          <div class="section-icon">🔧</div>
+          <div>
+            <div class="section-title">システム構築費用</div>
+            <div class="section-subtitle">フェーズ別工数 × 人件費単価（税別）</div>
+          </div>
+        </div>
+        <div class="phase-list" id="phaseList">
+          <!-- Generated by JS -->
+        </div>
+
+        <!-- Custom Work (pack-excluded) -->
+        <div class="custom-work-header">⚠ パック対象外の追加作業（税別）</div>
+        <div class="custom-work-note">
+          ※ 他社SaaS連携、API連携、webhook実装、Excelマクロ・VBAはサポートパック対象外です。必要な場合のみ工数を設定してください。
+        </div>
+        <div class="phase-list" id="customWorkList">
+          <!-- Generated by JS -->
+        </div>
+
+        <div class="construction-total-bar">
+          <span class="construction-total-label">構築費用合計（税別）</span>
+          <span class="construction-total-value" id="constructionTotal">0円</span>
+        </div>
+      </div>
+
+      <!-- ④ Support Pack -->
+      <div class="config-section">
+        <div class="section-header">
+          <div class="section-icon">🛟</div>
+          <div>
+            <div class="section-title">サポートパック</div>
+            <div class="section-subtitle">時間労働の先払い買い取りパック（オプション・税別）</div>
+          </div>
+        </div>
+        <div class="section-hint">
+          サポートパック選択時は、全フェーズ（要件整理〜成果物作成）の費用がパック定額に置き換わります。パック対象外作業（SaaS連携、API等）は別途費用が発生します。
+        </div>
+        <div class="support-toggle-wrap">
+          <label class="support-toggle-label">
+            <input type="checkbox" id="supportToggle">
+            サポートパックを利用する
+          </label>
+        </div>
+        <div class="support-pack-area" id="supportPackArea">
+          <div class="support-pack-grid" id="supportPackGrid">
+            <!-- Generated by JS -->
+          </div>
+          <div class="support-note">
+            ※ 有効期限：注文月から6ヶ月後の月末まで<br>
+            ※ 先払い制（発注時にお支払い）<br>
+            ※ 工数カウントは0.5時間単位<br>
+            ※ 対象：要件整理〜成果物作成まで全フェーズ<br>
+            ※ 保守運用費用は含まれません
+          </div>
+          <div class="support-recommendation" id="supportRecommendation" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- ⑤ Contract Period -->
+      <div class="config-section">
+        <div class="section-header">
+          <div class="section-icon">📅</div>
+          <div>
+            <div class="section-title">契約期間</div>
+          </div>
+        </div>
+        <div class="period-segments" role="group" aria-label="契約期間">
+          <button class="period-btn active" data-months="12">12ヶ月</button>
+          <button class="period-btn" data-months="24">24ヶ月</button>
+          <button class="period-btn" data-months="36">36ヶ月</button>
+        </div>
+        <div class="contract-calc" id="contractCalc"></div>
+      </div>
+    </section>
+
+    <!-- Right: Results -->
+    <aside class="results-panel">
+      <div class="results-card">
+        <div class="results-header">
+          <div class="results-title">見積概算</div>
+          <div class="results-date" id="resultsDate"></div>
+        </div>
+
+        <!-- Monthly Cost -->
+        <div class="result-category">月額費用</div>
+        <div class="total-section">
+          <div class="total-label">月額合計（税別）</div>
+          <div class="total-amount" id="totalAmount">0円</div>
+          <div class="total-tax">税込（10%）: <strong id="totalTax">0円</strong></div>
+          <div class="total-tax" style="margin-top:2px;">年間費用（税込）: <strong id="annualTotal">0円</strong></div>
+        </div>
+
+        <!-- Initial Cost -->
+        <div class="result-category">初期費用（構築費用）</div>
+        <div class="total-section">
+          <div class="total-label">初期費用合計（税込）</div>
+          <div class="total-amount" id="initialTotal" style="font-size:1.8rem;">0円</div>
+        </div>
+
+        <!-- Grand Total -->
+        <div class="result-category">総費用</div>
+        <div class="grand-total-section">
+          <div class="grand-total-label">初年度総費用（税込）</div>
+          <div class="grand-total-amount" id="grandTotal">0円</div>
+          <div class="grand-total-breakdown" id="grandTotalBreakdown"></div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-section">
+          <div class="chart-container">
+            <canvas id="costChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Detail Table -->
+        <div class="detail-section">
+          <div class="detail-section-title">費用明細</div>
+          <table class="detail-table">
+            <thead>
+              <tr><th>項目</th><th>金額</th></tr>
+            </thead>
+            <tbody id="detailTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Notes -->
+        <div class="notes-section">
+          <div class="detail-section-title">注意事項</div>
+          <div class="notes-category">【ライセンス・パッケージ】</div>
+          <ul class="notes-list">
+            <li>本見積もりは概算です。正式なお見積もりは別途ご提示いたします。</li>
+            <li>ライセンス料金・構築費用はすべて税別表示です。別途消費税10%が加算されます。</li>
+            <li>同時ログインライセンスは5ライセンス単位での購入となります。</li>
+            <li>ベーシックからスタンダードへのアップグレードは差額（50,000円/月）での変更が可能です。</li>
+            <li>スタンダードパッケージは2026年2月17日提供開始です。</li>
+            <li>契約は月単位または年単位。契約期間中の解約は残存期間分の支払い義務が生じます。</li>
+          </ul>
+          <div class="notes-category">【サポートパック】</div>
+          <ul class="notes-list">
+            <li>サポートパックは要件整理〜成果物作成まで全フェーズの時間を先払いで買い取るパックです。</li>
+            <li>サポートパックは有効期限（注文月から6ヶ月後の月末）があります。</li>
+            <li>サポートパックは先払い制です（発注時にお支払いいただきます）。</li>
+            <li>工数カウントは0.5時間単位です。</li>
+            <li>他社SaaS連携、API連携、webhook実装、Excelマクロ・VBAはパック対象外です。</li>
+            <li>保守運用費用はサポートパックに含まれません。</li>
+          </ul>
+        </div>
+
+        <!-- Actions -->
+        <div class="action-bar">
+          <button class="btn btn-primary" id="btnCopy"><span class="btn-icon">📋</span>コピー</button>
+          <button class="btn btn-secondary" id="btnPdf"><span class="btn-icon">📄</span>PDF出力</button>
+          <button class="btn btn-outline" id="btnReset">リセット</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Mobile Total Bar -->
+  <div class="mobile-total-bar">
+    <div class="mobile-total-inner">
+      <div>
+        <div class="mobile-total-label">初年度総費用（税込）</div>
+        <div class="mobile-total-amount" id="mobileTotalAmount">0円</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copy Feedback Toast -->
+  <div class="copy-feedback" id="copyFeedback">クリップボードにコピーしました</div>
+
+  <!-- Quote Sheet (見積書) Overlay -->
+  <div id="quoteSheet" class="quote-overlay">
+    <div class="quote-overlay-controls">
+      <button id="quotePrint">🖨 印刷 / PDF出力</button>
+      <button id="quoteClose">✕ 閉じる</button>
+    </div>
+    <div class="quote-page">
+
+      <!-- Title -->
+      <div class="quote-title-wrap">
+        <div class="quote-title">見 積 書</div>
+      </div>
+
+      <!-- Row 1: Customer name (left) + Date/Number/Validity (right) -->
+      <div class="quote-header-row">
+        <div>
+          <div class="quote-customer-name" id="quoteCustomerName" contenteditable="true">〇〇〇〇 御中</div>
+        </div>
+        <table class="quote-header-meta">
+          <tr><td>見積日</td><td id="quoteDate">2026-02-20</td></tr>
+          <tr><td>見積書番号</td><td id="quoteNumber">EST-20260220-001</td></tr>
+          <tr><td>有効期限</td><td id="quoteValidity">2026-03-22</td></tr>
+        </table>
+      </div>
+
+      <!-- Row 2: Company info (right) + stamp -->
+      <div class="quote-company-row">
+        <div class="quote-company-block">
+          <div class="quote-company-text">
+            <div class="quote-company-name">株式会社〇〇〇〇</div>
+            <div>〇〇 〇〇</div>
+            <div>〒000-0000</div>
+            <div>東京都〇〇区〇〇 0-0-0</div>
+          </div>
+          <div class="quote-stamp-area"></div>
+        </div>
+      </div>
+
+      <!-- Greeting + Subject + Amount -->
+      <div class="quote-greeting">下記の通り御見積もり申し上げます。</div>
+      <div class="quote-subject-row">
+        <span class="quote-subject-label">件名</span>
+        <span class="quote-subject-value" id="quoteSubject">JUST.DB 導入費用</span>
+      </div>
+      <div class="quote-amount-row">
+        <span class="quote-amount-label">見積金額</span>
+        <span class="quote-amount-value" id="quoteTotalAmount">0</span>
+        <span class="quote-amount-yen">円</span>
+      </div>
+
+      <!-- Monthly Table -->
+      <div class="quote-section-label">【月額費用】</div>
+      <table class="quote-table">
+        <colgroup>
+          <col style="width:50%"><col style="width:12%">
+          <col style="width:19%"><col style="width:19%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="col-item">摘要</th>
+            <th class="col-qty">数量</th>
+            <th class="col-price">単価</th>
+            <th class="col-amount">明細金額</th>
+          </tr>
+        </thead>
+        <tbody id="quoteMonthlyBody"></tbody>
+        <tfoot>
+          <tr><td colspan="3" class="sum-label-cell">小計</td><td class="sum-value-cell" id="quoteMonthlySubtotal"></td></tr>
+          <tr><td colspan="3" class="sum-label-cell">消費税（10%）</td><td class="sum-value-cell" id="quoteMonthlyTax"></td></tr>
+          <tr class="sum-total"><td colspan="3" class="sum-label-cell">月額合計（税込）</td><td class="sum-value-cell" id="quoteMonthlyTotal"></td></tr>
+        </tfoot>
+      </table>
+
+      <!-- Initial Cost Table -->
+      <div class="quote-section-label">【初期費用（構築費用）】</div>
+      <table class="quote-table">
+        <colgroup>
+          <col style="width:50%"><col style="width:12%">
+          <col style="width:19%"><col style="width:19%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="col-item">摘要</th>
+            <th class="col-qty">数量</th>
+            <th class="col-price">単価</th>
+            <th class="col-amount">明細金額</th>
+          </tr>
+        </thead>
+        <tbody id="quoteInitialBody"></tbody>
+        <tfoot>
+          <tr><td colspan="3" class="sum-label-cell">小計</td><td class="sum-value-cell" id="quoteInitialSubtotal"></td></tr>
+          <tr><td colspan="3" class="sum-label-cell">消費税（10%）</td><td class="sum-value-cell" id="quoteInitialTax"></td></tr>
+          <tr class="sum-total"><td colspan="3" class="sum-label-cell">初期費用合計（税込）</td><td class="sum-value-cell" id="quoteInitialTotal"></td></tr>
+          <tr class="sum-breakdown"><td colspan="3" class="sum-label-cell">内訳</td><td></td></tr>
+          <tr class="sum-breakdown"><td colspan="3" class="sum-label-cell">10%対象（税抜）</td><td class="sum-value-cell" id="quoteInitialTaxBase"></td></tr>
+          <tr class="sum-breakdown"><td colspan="3" class="sum-label-cell">10%消費税</td><td class="sum-value-cell" id="quoteInitialTaxAmount"></td></tr>
+        </tfoot>
+      </table>
+
+      <!-- Grand Total -->
+      <div class="quote-grand-total-row">
+        <span>初年度総費用（税込）</span>
+        <span id="quoteGrandTotal">0円</span>
+      </div>
+      <div class="quote-grand-breakdown" id="quoteGrandBreakdown"></div>
+
+      <!-- Delivery info -->
+      <div class="quote-delivery-info">
+        <span>納品期限：別途ご相談</span>
+        <span>納品場所：クラウド環境</span>
+      </div>
+
+      <!-- Remarks (bordered box) -->
+      <div class="quote-remarks">
+        <div class="quote-remarks-title">備考</div>
+        <div class="remark-line">契約形態：準委任</div>
+        <div class="remark-line">契約期間：<span id="quoteContractPeriod"></span></div>
+        <div class="remark-line">支払条件：月末締め翌月末払い</div>
+        <div class="remark-line">本見積もりは概算です。正式なお見積もりは別途ご提示いたします。</div>
+        <div class="remark-line">同時ログインライセンスは5ライセンス単位での購入となります。</div>
+        <div class="remark-line">サポートパックの有効期限は注文月から6ヶ月後の月末までです。</div>
+        <div class="remark-line">保守運用費用はサポートパックに含まれません。</div>
+      </div>
+
+      <!-- Page number -->
+      <div class="quote-page-number">1 / 1</div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       JavaScript
+       ========================================== -->
+  <script>
+  (function() {
+    'use strict';
+
+    // ==========================================
+    // PRICES - JUST.DB 公式料金（税別）
+    // ==========================================
+    var PRICES = {
+      license: { unitPrice: 15000, min: 5, max: 100, step: 5 },
+
+      packages: {
+        none:     { name: 'パッケージなし',         monthlyPrice: 0 },
+        basic:    { name: 'ベーシックパッケージ',     monthlyPrice: 24000 },
+        standard: { name: 'スタンダードパッケージ',   monthlyPrice: 74000, upgradeFromBasic: 50000 },
+      },
+
+      staffRates: {
+        manager:          { name: 'マネージャー',         hourlyRate: 24000 },
+        seniorConsultant: { name: 'シニアコンサルタント', hourlyRate: 18000 },
+        consultant:       { name: 'コンサルタント',       hourlyRate: 12000 },
+        engineer:         { name: 'システムエンジニア',   hourlyRate: 8000 },
+        associate:        { name: 'アソシエイト',         hourlyRate: 8000 },
+      },
+
+      constructionPhases: {
+        requirements: { name: '要件整理・要件定義',       role: 'seniorConsultant', defaultHours: 40, maxHours: 80,  description: 'As-Is/To-Be整理、業務フロー作成', coveredByPack: true },
+        pm:           { name: 'PM・プロジェクト管理',     role: 'manager',          defaultHours: 20, maxHours: 40,  description: '定例会・課題管理・議事録作成',     coveredByPack: true },
+        development:  { name: '構築・開発（アジャイル）', role: 'consultant',       defaultHours: 60, maxHours: 120, description: 'プロトタイプ作成・実装・テスト・修正', coveredByPack: true },
+        training:     { name: '教育・研修支援',           role: 'consultant',       defaultHours: 20, maxHours: 40,  description: 'DX担当者研修（約9〜10時間）＋個別補助', coveredByPack: true },
+        manual:       { name: 'マニュアル・成果物作成',   role: 'associate',        defaultHours: 16, maxHours: 32,  description: 'DB定義書・業務プレート定義書作成', coveredByPack: true },
+      },
+
+      customWork: {
+        saasIntegration: { name: '他社SaaS連携',        role: 'engineer', defaultHours: 0, maxHours: 80 },
+        apiWebhook:      { name: 'API連携・Webhook実装', role: 'engineer', defaultHours: 0, maxHours: 80 },
+        excelVba:        { name: 'Excelマクロ・VBA',     role: 'engineer', defaultHours: 0, maxHours: 80 },
+      },
+
+      supportPacks: {
+        pack20: { name: 'サポートパック20', price: 400000,  hours: 20, unitPrice: 20000 },
+        pack40: { name: 'サポートパック40', price: 700000,  hours: 40, unitPrice: 17500 },
+        pack60: { name: 'サポートパック60', price: 1000000, hours: 60, unitPrice: 16666 },
+      },
+
+      taxRate: 0.10,
+      animationDuration: 400,
+    };
+
+    // ==========================================
+    // State
+    // ==========================================
+    var state = {
+      licenseCount: 10,
+      selectedPackage: 'none',
+      contractMonths: 12,
+      phaseHours: {
+        requirements: 40, pm: 20, development: 60, training: 20, manual: 16,
+      },
+      phaseRoles: {
+        requirements: 'seniorConsultant',
+        pm: 'manager',
+        development: 'consultant',
+        training: 'consultant',
+        manual: 'associate',
+      },
+      customWorkHours: {
+        saasIntegration: 0, apiWebhook: 0, excelVba: 0,
+      },
+      customWorkRoles: {
+        saasIntegration: 'engineer', apiWebhook: 'engineer', excelVba: 'engineer',
+      },
+      useSupportPack: false,
+      selectedSupportPack: null,
+    };
+
+    // Previous values for animation
+    var prevMonthly = 0, prevMonthlyTax = 0, prevAnnual = 0;
+    var prevInitial = 0, prevGrand = 0, prevMobile = 0;
+
+    // ==========================================
+    // Formatting
+    // ==========================================
+    var fmt = new Intl.NumberFormat('ja-JP');
+    function yen(v) { return v == null ? '---' : fmt.format(v) + '円'; }
+
+    // ==========================================
+    // Animation
+    // ==========================================
+    function animateVal(el, from, to, dur, suffix) {
+      suffix = suffix || '円';
+      var start = performance.now();
+      function tick(now) {
+        var p = Math.min((now - start) / dur, 1);
+        var e = 1 - Math.pow(1 - p, 3);
+        el.textContent = fmt.format(Math.round(from + (to - from) * e)) + suffix;
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // ==========================================
+    // Build staff role options HTML
+    // ==========================================
+    function buildRoleOptions(selectedRole) {
+      var html = '';
+      var keys = Object.keys(PRICES.staffRates);
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var staff = PRICES.staffRates[key];
+        var sel = key === selectedRole ? ' selected' : '';
+        html += '<option value="' + key + '"' + sel + '>' + staff.name + '</option>';
+      }
+      return html;
+    }
+
+    // ==========================================
+    // Calculation
+    // ==========================================
+    function calculate() {
+      var licenseCost = state.licenseCount * PRICES.license.unitPrice;
+      var pkg = PRICES.packages[state.selectedPackage];
+      var packageCost = pkg.monthlyPrice;
+
+      var monthlySubtotal = licenseCost + packageCost;
+      var monthlyTax = Math.floor(monthlySubtotal * PRICES.taxRate);
+      var monthlyTotal = monthlySubtotal + monthlyTax;
+      var annualTotal = monthlyTotal * 12;
+
+      // Construction cost (all phases)
+      var constructionSubtotal = 0;
+      var phaseDetails = [];
+      var phaseKeys = Object.keys(PRICES.constructionPhases);
+      for (var i = 0; i < phaseKeys.length; i++) {
+        var key = phaseKeys[i];
+        var phase = PRICES.constructionPhases[key];
+        var roleKey = state.phaseRoles[key];
+        var staff = PRICES.staffRates[roleKey];
+        var hours = state.phaseHours[key];
+        var cost = hours * staff.hourlyRate;
+        constructionSubtotal += cost;
+        phaseDetails.push({ key: key, name: phase.name, role: staff.name, roleKey: roleKey, rate: staff.hourlyRate, hours: hours, cost: cost, coveredByPack: phase.coveredByPack });
+      }
+
+      // Custom work cost (always outside pack)
+      var customWorkTotal = 0;
+      var customWorkDetails = [];
+      var cwKeys = Object.keys(PRICES.customWork);
+      for (var j = 0; j < cwKeys.length; j++) {
+        var cwKey = cwKeys[j];
+        var cw = PRICES.customWork[cwKey];
+        var cwRoleKey = state.customWorkRoles[cwKey];
+        var cwStaff = PRICES.staffRates[cwRoleKey];
+        var cwHours = state.customWorkHours[cwKey];
+        var cwCost = cwHours * cwStaff.hourlyRate;
+        customWorkTotal += cwCost;
+        customWorkDetails.push({ key: cwKey, name: cw.name, role: cwStaff.name, roleKey: cwRoleKey, rate: cwStaff.hourlyRate, hours: cwHours, cost: cwCost });
+      }
+
+      // Support pack
+      var supportPackCost = 0;
+      var supportPackName = '';
+      var usePackLogic = state.useSupportPack && state.selectedSupportPack;
+      if (usePackLogic) {
+        var sp = PRICES.supportPacks[state.selectedSupportPack];
+        supportPackCost = sp.price;
+        supportPackName = sp.name;
+      }
+
+      // Initial cost calculation
+      var initialSubtotal;
+      if (usePackLogic) {
+        // Pack replaces ALL phases: pack + custom only
+        initialSubtotal = supportPackCost + customWorkTotal;
+      } else {
+        // All phases + custom (+ support pack if toggled but not selected yet, which is 0)
+        initialSubtotal = constructionSubtotal + supportPackCost + customWorkTotal;
+      }
+      var initialTax = Math.floor(initialSubtotal * PRICES.taxRate);
+      var initialTotal = initialSubtotal + initialTax;
+
+      var grandTotal = annualTotal + initialTotal;
+
+      var contractMonthlyTotal = monthlyTotal * state.contractMonths;
+      var contractSubtotal = monthlySubtotal * state.contractMonths;
+
+      // Total phase hours (for recommendation - all phases covered by pack)
+      var totalPhaseHours = 0;
+      for (var k in state.phaseHours) {
+        totalPhaseHours += state.phaseHours[k];
+      }
+
+      return {
+        licenseCost: licenseCost,
+        packageCost: packageCost,
+        packageName: pkg.name,
+        monthlySubtotal: monthlySubtotal,
+        monthlyTax: monthlyTax,
+        monthlyTotal: monthlyTotal,
+        annualTotal: annualTotal,
+        constructionSubtotal: constructionSubtotal,
+        phaseDetails: phaseDetails,
+        customWorkTotal: customWorkTotal,
+        customWorkDetails: customWorkDetails,
+        supportPackCost: supportPackCost,
+        supportPackName: supportPackName,
+        usePackLogic: usePackLogic,
+        initialSubtotal: initialSubtotal,
+        initialTax: initialTax,
+        initialTotal: initialTotal,
+        grandTotal: grandTotal,
+        contractMonths: state.contractMonths,
+        contractMonthlyTotal: contractMonthlyTotal,
+        contractSubtotal: contractSubtotal,
+        totalPhaseHours: totalPhaseHours,
+      };
+    }
+
+    // ==========================================
+    // DOM
+    // ==========================================
+    var dom = {};
+    function cacheDom() {
+      var ids = ['licenseValue','licenseSlider','licenseMinus','licensePlus','licenseCostDisplay',
+        'totalAmount','totalTax','annualTotal','initialTotal','grandTotal','grandTotalBreakdown',
+        'detailTableBody','contractCalc','mobileTotalAmount','constructionTotal',
+        'phaseList','customWorkList','supportToggle','supportPackArea','supportPackGrid','supportRecommendation',
+        'btnCopy','btnPdf','btnReset','copyFeedback','headerDate','resultsDate','costChart'];
+      for (var i = 0; i < ids.length; i++) dom[ids[i]] = document.getElementById(ids[i]);
+    }
+
+    // ==========================================
+    // Chart
+    // ==========================================
+    var chart = null;
+    function initChart() {
+      chart = new Chart(dom.costChart.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0, borderRadius: 4 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true, cutout: '65%',
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { family: "'Noto Sans JP'", size: 11 }, padding: 14, usePointStyle: true, pointStyle: 'circle' } },
+            tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + fmt.format(ctx.parsed) + '円'; } } }
+          }
+        }
+      });
+    }
+
+    function updateChart(data) {
+      var labels = [], values = [], colors = [];
+      if (data.licenseCost > 0) { labels.push('ライセンス（年間）'); values.push(data.licenseCost * 12); colors.push('#1a3a5c'); }
+      if (data.packageCost > 0) { labels.push('パッケージ（年間）'); values.push(data.packageCost * 12); colors.push('#2a5a8c'); }
+      if (data.usePackLogic) {
+        if (data.supportPackCost > 0) { labels.push('サポートパック'); values.push(data.supportPackCost); colors.push('#f5a623'); }
+      } else {
+        if (data.constructionSubtotal > 0) { labels.push('構築費用'); values.push(data.constructionSubtotal); colors.push('#f07900'); }
+        if (data.supportPackCost > 0) { labels.push('サポートパック'); values.push(data.supportPackCost); colors.push('#f5a623'); }
+      }
+      if (data.customWorkTotal > 0) { labels.push('パック対象外作業'); values.push(data.customWorkTotal); colors.push('#c0392b'); }
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = values;
+      chart.data.datasets[0].backgroundColor = colors;
+      chart.update();
+    }
+
+    // ==========================================
+    // Build Phase Sliders
+    // ==========================================
+    function buildPhaseList() {
+      var html = '';
+      var keys = Object.keys(PRICES.constructionPhases);
+      var isPackActive = state.useSupportPack && state.selectedSupportPack;
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var p = PRICES.constructionPhases[key];
+        var roleKey = state.phaseRoles[key];
+        var staff = PRICES.staffRates[roleKey];
+        var hours = state.phaseHours[key];
+        var cost = hours * staff.hourlyRate;
+        var coveredClass = (isPackActive && p.coveredByPack) ? ' covered-by-pack' : '';
+        html += '<div class="phase-row' + coveredClass + '" data-phase="' + key + '">' +
+          '<div class="phase-row-header">' +
+            '<span class="phase-name">' + p.name + ' <span class="phase-pack-badge">パック内</span></span>' +
+            '<span class="phase-subtotal' + (isPackActive && p.coveredByPack ? ' in-pack' : '') + '" id="phaseCost_' + key + '">' + yen(cost) + '</span>' +
+          '</div>' +
+          '<div class="phase-meta">' +
+            '<select class="phase-role-select" data-phase="' + key + '" data-type="phase">' + buildRoleOptions(roleKey) + '</select>' +
+            '<span class="phase-rate-display" id="phaseRate_' + key + '">' + fmt.format(staff.hourlyRate) + '円/時</span>' +
+            '<span>｜ ' + p.description + '</span>' +
+          '</div>' +
+          '<div class="phase-slider-row">' +
+            '<input type="range" class="phase-slider" data-phase="' + key + '" min="0" max="' + p.maxHours + '" step="1" value="' + hours + '">' +
+            '<span class="phase-hours" id="phaseHours_' + key + '">' + hours + 'h</span>' +
+          '</div>' +
+        '</div>';
+      }
+      dom.phaseList.innerHTML = html;
+    }
+
+    function buildCustomWorkList() {
+      var html = '';
+      var keys = Object.keys(PRICES.customWork);
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var cw = PRICES.customWork[key];
+        var roleKey = state.customWorkRoles[key];
+        var staff = PRICES.staffRates[roleKey];
+        var hours = state.customWorkHours[key];
+        var cost = hours * staff.hourlyRate;
+        html += '<div class="phase-row" data-custom="' + key + '">' +
+          '<div class="phase-row-header">' +
+            '<span class="phase-name">' + cw.name + '</span>' +
+            '<span class="phase-subtotal" id="customCost_' + key + '">' + yen(cost) + '</span>' +
+          '</div>' +
+          '<div class="phase-meta">' +
+            '<select class="phase-role-select" data-custom="' + key + '" data-type="custom">' + buildRoleOptions(roleKey) + '</select>' +
+            '<span class="phase-rate-display" id="customRate_' + key + '">' + fmt.format(staff.hourlyRate) + '円/時</span>' +
+          '</div>' +
+          '<div class="phase-slider-row">' +
+            '<input type="range" class="phase-slider" data-custom="' + key + '" min="0" max="' + cw.maxHours + '" step="1" value="' + hours + '">' +
+            '<span class="phase-hours" id="customHours_' + key + '">' + hours + 'h</span>' +
+          '</div>' +
+        '</div>';
+      }
+      dom.customWorkList.innerHTML = html;
+    }
+
+    function buildSupportPacks() {
+      var html = '';
+      var keys = Object.keys(PRICES.supportPacks);
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var sp = PRICES.supportPacks[key];
+        html += '<div class="support-pack-card" data-pack="' + key + '">' +
+          '<div class="support-pack-name">' + sp.name + '</div>' +
+          '<div class="support-pack-price">' + yen(sp.price) + '</div>' +
+          '<div class="support-pack-detail">' + sp.hours + '時間</div>' +
+          '<div class="support-pack-unit">単価 ' + fmt.format(sp.unitPrice) + '円/時</div>' +
+        '</div>';
+      }
+      dom.supportPackGrid.innerHTML = html;
+    }
+
+    // ==========================================
+    // Render
+    // ==========================================
+    function render() {
+      var data = calculate();
+
+      // License
+      dom.licenseValue.textContent = state.licenseCount;
+      dom.licenseSlider.value = state.licenseCount;
+      dom.licenseMinus.disabled = state.licenseCount <= PRICES.license.min;
+      dom.licensePlus.disabled = state.licenseCount >= PRICES.license.max;
+      dom.licenseCostDisplay.innerHTML = state.licenseCount + ' ライセンス × 15,000円 = <strong>' + yen(data.licenseCost) + '</strong> /月';
+
+      // Phase costs & pack visual state
+      var phaseKeys = Object.keys(PRICES.constructionPhases);
+      for (var i = 0; i < phaseKeys.length; i++) {
+        var key = phaseKeys[i];
+        var phase = PRICES.constructionPhases[key];
+        var roleKey = state.phaseRoles[key];
+        var staff = PRICES.staffRates[roleKey];
+        var costEl = document.getElementById('phaseCost_' + key);
+        var hEl = document.getElementById('phaseHours_' + key);
+        var rateEl = document.getElementById('phaseRate_' + key);
+        var row = document.querySelector('.phase-row[data-phase="' + key + '"]');
+
+        if (costEl) {
+          costEl.textContent = yen(data.phaseDetails[i].cost);
+          if (data.usePackLogic && phase.coveredByPack) {
+            costEl.classList.add('in-pack');
+          } else {
+            costEl.classList.remove('in-pack');
+          }
+        }
+        if (hEl) hEl.textContent = state.phaseHours[key] + 'h';
+        if (rateEl) rateEl.textContent = fmt.format(staff.hourlyRate) + '円/時';
+        if (row) {
+          if (data.usePackLogic && phase.coveredByPack) {
+            row.classList.add('covered-by-pack');
+          } else {
+            row.classList.remove('covered-by-pack');
+          }
+        }
+      }
+
+      // Custom work costs
+      var cwKeys = Object.keys(PRICES.customWork);
+      for (var ci = 0; ci < cwKeys.length; ci++) {
+        var cwKey = cwKeys[ci];
+        var cwRoleKey = state.customWorkRoles[cwKey];
+        var cwStaff = PRICES.staffRates[cwRoleKey];
+        var cwCostEl = document.getElementById('customCost_' + cwKey);
+        var cwHEl = document.getElementById('customHours_' + cwKey);
+        var cwRateEl = document.getElementById('customRate_' + cwKey);
+        if (cwCostEl) cwCostEl.textContent = yen(data.customWorkDetails[ci].cost);
+        if (cwHEl) cwHEl.textContent = state.customWorkHours[cwKey] + 'h';
+        if (cwRateEl) cwRateEl.textContent = fmt.format(cwStaff.hourlyRate) + '円/時';
+      }
+
+      dom.constructionTotal.textContent = yen(data.initialSubtotal);
+
+      // Support recommendation (all phase hours)
+      if (state.useSupportPack && data.totalPhaseHours > 0) {
+        var rec = recommendPacks(data.totalPhaseHours);
+        dom.supportRecommendation.style.display = 'block';
+        dom.supportRecommendation.textContent = '💡 全フェーズ合計工数 ' + data.totalPhaseHours + '時間 → ' + rec;
+      } else {
+        dom.supportRecommendation.style.display = 'none';
+      }
+
+      // Totals with animation
+      var dur = PRICES.animationDuration;
+      animateVal(dom.totalAmount, prevMonthly, data.monthlySubtotal, dur);
+      prevMonthly = data.monthlySubtotal;
+      animateVal(dom.totalTax, prevMonthlyTax, data.monthlyTotal, dur);
+      prevMonthlyTax = data.monthlyTotal;
+      animateVal(dom.annualTotal, prevAnnual, data.annualTotal, dur);
+      prevAnnual = data.annualTotal;
+      animateVal(dom.initialTotal, prevInitial, data.initialTotal, dur);
+      prevInitial = data.initialTotal;
+      animateVal(dom.grandTotal, prevGrand, data.grandTotal, dur);
+      prevGrand = data.grandTotal;
+      animateVal(dom.mobileTotalAmount, prevMobile, data.grandTotal, dur);
+      prevMobile = data.grandTotal;
+
+      dom.grandTotalBreakdown.textContent = '月額' + yen(data.monthlyTotal) + ' × 12ヶ月 ＋ 初期費用' + yen(data.initialTotal);
+
+      // Contract calc
+      dom.contractCalc.innerHTML = yen(data.monthlySubtotal) + ' × ' + data.contractMonths + 'ヶ月 = <strong>' + yen(data.contractSubtotal) + '</strong>（税別）';
+
+      // Detail table
+      var rows = '';
+      rows += '<tr class="section-label"><td colspan="2">▎ 月額費用</td></tr>';
+      rows += '<tr><td>ライセンス（' + state.licenseCount + '名 × 15,000円）</td><td>' + yen(data.licenseCost) + '/月</td></tr>';
+      if (state.selectedPackage !== 'none') {
+        rows += '<tr><td>' + data.packageName + '</td><td>' + yen(data.packageCost) + '/月</td></tr>';
+      }
+      rows += '<tr class="subtotal-row"><td>月額合計（税別）</td><td>' + yen(data.monthlySubtotal) + '</td></tr>';
+      rows += '<tr><td>消費税（10%）</td><td>' + yen(data.monthlyTax) + '</td></tr>';
+      rows += '<tr class="subtotal-row"><td>月額合計（税込）</td><td>' + yen(data.monthlyTotal) + '</td></tr>';
+      rows += '<tr><td>年間費用（税込）</td><td>' + yen(data.annualTotal) + '</td></tr>';
+
+      rows += '<tr class="section-label"><td colspan="2">▎ 初期費用（構築）</td></tr>';
+
+      if (data.usePackLogic) {
+        // Pack replaces all phases
+        rows += '<tr><td>' + data.supportPackName + '（全フェーズ分）</td><td>' + yen(data.supportPackCost) + '</td></tr>';
+      } else {
+        // Show all phases individually
+        for (var k = 0; k < data.phaseDetails.length; k++) {
+          var pd = data.phaseDetails[k];
+          if (pd.hours > 0) {
+            rows += '<tr><td>' + pd.name + '（' + pd.hours + 'h × ' + fmt.format(pd.rate) + '円）</td><td>' + yen(pd.cost) + '</td></tr>';
+          }
+        }
+        if (data.supportPackCost > 0) {
+          rows += '<tr><td>' + data.supportPackName + '</td><td>' + yen(data.supportPackCost) + '</td></tr>';
+        }
+      }
+
+      // Custom work details
+      for (var m = 0; m < data.customWorkDetails.length; m++) {
+        var cwd = data.customWorkDetails[m];
+        if (cwd.hours > 0) {
+          rows += '<tr><td>' + cwd.name + '（' + cwd.hours + 'h × ' + fmt.format(cwd.rate) + '円）</td><td>' + yen(cwd.cost) + '</td></tr>';
+        }
+      }
+
+      rows += '<tr class="subtotal-row"><td>初期費用合計（税別）</td><td>' + yen(data.initialSubtotal) + '</td></tr>';
+      rows += '<tr><td>消費税（10%）</td><td>' + yen(data.initialTax) + '</td></tr>';
+      rows += '<tr class="subtotal-row"><td>初期費用合計（税込）</td><td>' + yen(data.initialTotal) + '</td></tr>';
+
+      rows += '<tr class="section-label"><td colspan="2">▎ 契約期間費用</td></tr>';
+      rows += '<tr><td>月額 × ' + data.contractMonths + 'ヶ月（税込）</td><td>' + yen(data.contractMonthlyTotal) + '</td></tr>';
+
+      dom.detailTableBody.innerHTML = rows;
+
+      // Chart
+      updateChart(data);
+    }
+
+    // ==========================================
+    // Support Pack Recommendation
+    // ==========================================
+    function recommendPacks(totalHours) {
+      var best = null, bestCost = Infinity;
+      // Simple greedy
+      for (var a = 0; a <= 3; a++) {
+        for (var b = 0; b <= 4; b++) {
+          for (var c = 0; c <= 8; c++) {
+            var h = a * 60 + b * 40 + c * 20;
+            var cost = a * 1000000 + b * 700000 + c * 400000;
+            if (h >= totalHours && cost < bestCost) {
+              bestCost = cost;
+              best = [];
+              if (a > 0) best.push('パック60 × ' + a);
+              if (b > 0) best.push('パック40 × ' + b);
+              if (c > 0) best.push('パック20 × ' + c);
+            }
+          }
+        }
+      }
+      return best && best.length > 0 ? best.join(' ＋ ') + '（' + yen(bestCost) + '）がおすすめ' : '個別にご相談ください';
+    }
+
+    // ==========================================
+    // Events
+    // ==========================================
+    function setLicense(v) {
+      v = Math.max(PRICES.license.min, Math.min(PRICES.license.max, v));
+      v = Math.round(v / PRICES.license.step) * PRICES.license.step;
+      state.licenseCount = v;
+      render();
+    }
+
+    function attachEvents() {
+      dom.licenseMinus.addEventListener('click', function() { setLicense(state.licenseCount - PRICES.license.step); });
+      dom.licensePlus.addEventListener('click', function() { setLicense(state.licenseCount + PRICES.license.step); });
+      dom.licenseSlider.addEventListener('input', function() { setLicense(parseInt(this.value, 10)); });
+
+      dom.licenseValue.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); var v = parseInt(this.textContent.replace(/\D/g,''),10); if (!isNaN(v)) setLicense(v); this.blur(); }
+        else if (e.key === 'Escape') { this.textContent = state.licenseCount; this.blur(); }
+      });
+      dom.licenseValue.addEventListener('blur', function() {
+        var v = parseInt(this.textContent.replace(/\D/g,''),10);
+        if (!isNaN(v)) setLicense(v); else this.textContent = state.licenseCount;
+      });
+
+      // Long press
+      var lpTimer, lpInterval;
+      function startLp(dir) { lpTimer = setTimeout(function() { lpInterval = setInterval(function() { setLicense(state.licenseCount + dir * PRICES.license.step); }, 120); }, 400); }
+      function stopLp() { clearTimeout(lpTimer); clearInterval(lpInterval); }
+      dom.licenseMinus.addEventListener('mousedown', function() { startLp(-1); });
+      dom.licenseMinus.addEventListener('mouseup', stopLp);
+      dom.licenseMinus.addEventListener('mouseleave', stopLp);
+      dom.licensePlus.addEventListener('mousedown', function() { startLp(1); });
+      dom.licensePlus.addEventListener('mouseup', stopLp);
+      dom.licensePlus.addEventListener('mouseleave', stopLp);
+
+      // Package cards
+      document.querySelectorAll('.package-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+          document.querySelectorAll('.package-card').forEach(function(c) { c.classList.remove('selected'); });
+          this.classList.add('selected');
+          state.selectedPackage = this.dataset.package;
+          render();
+        });
+      });
+
+      // Phase sliders (delegation)
+      dom.phaseList.addEventListener('input', function(e) {
+        if (e.target.classList.contains('phase-slider')) {
+          var phase = e.target.dataset.phase;
+          state.phaseHours[phase] = parseInt(e.target.value, 10);
+          render();
+        }
+      });
+
+      // Phase role selects (delegation)
+      dom.phaseList.addEventListener('change', function(e) {
+        if (e.target.classList.contains('phase-role-select')) {
+          var phase = e.target.dataset.phase;
+          state.phaseRoles[phase] = e.target.value;
+          render();
+        }
+      });
+
+      // Custom work sliders (delegation)
+      dom.customWorkList.addEventListener('input', function(e) {
+        if (e.target.classList.contains('phase-slider')) {
+          var cwKey = e.target.dataset.custom;
+          state.customWorkHours[cwKey] = parseInt(e.target.value, 10);
+          render();
+        }
+      });
+
+      // Custom work role selects (delegation)
+      dom.customWorkList.addEventListener('change', function(e) {
+        if (e.target.classList.contains('phase-role-select')) {
+          var cwKey = e.target.dataset.custom;
+          state.customWorkRoles[cwKey] = e.target.value;
+          render();
+        }
+      });
+
+      // Support toggle
+      dom.supportToggle.addEventListener('change', function() {
+        state.useSupportPack = this.checked;
+        dom.supportPackArea.classList.toggle('visible', this.checked);
+        if (!this.checked) { state.selectedSupportPack = null; deselectAllPacks(); }
+        buildPhaseList();
+        render();
+      });
+
+      // Support pack cards (delegation)
+      dom.supportPackGrid.addEventListener('click', function(e) {
+        var card = e.target.closest('.support-pack-card');
+        if (!card) return;
+        document.querySelectorAll('.support-pack-card').forEach(function(c) { c.classList.remove('selected'); });
+        card.classList.add('selected');
+        state.selectedSupportPack = card.dataset.pack;
+        buildPhaseList();
+        render();
+      });
+
+      // Contract period
+      document.querySelectorAll('.period-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.period-btn').forEach(function(b) { b.classList.remove('active'); });
+          this.classList.add('active');
+          state.contractMonths = parseInt(this.dataset.months, 10);
+          render();
+        });
+      });
+
+      // Copy
+      dom.btnCopy.addEventListener('click', function() {
+        navigator.clipboard.writeText(generateSummary()).then(function() {
+          dom.copyFeedback.classList.add('show');
+          setTimeout(function() { dom.copyFeedback.classList.remove('show'); }, 2000);
+        });
+      });
+
+      // PDF → 御見積書オーバーレイ
+      dom.btnPdf.addEventListener('click', function() {
+        populateQuoteSheet();
+        document.getElementById('quoteSheet').classList.add('visible');
+      });
+
+      // Quote sheet controls
+      document.getElementById('quoteClose').addEventListener('click', function() {
+        document.getElementById('quoteSheet').classList.remove('visible');
+      });
+      document.getElementById('quotePrint').addEventListener('click', function() {
+        window.print();
+      });
+
+      // Reset
+      dom.btnReset.addEventListener('click', resetAll);
+    }
+
+    function deselectAllPacks() {
+      document.querySelectorAll('.support-pack-card').forEach(function(c) { c.classList.remove('selected'); });
+    }
+
+    function resetAll() {
+      state.licenseCount = 10;
+      state.selectedPackage = 'none';
+      state.contractMonths = 12;
+      state.phaseHours = { requirements: 40, pm: 20, development: 60, training: 20, manual: 16 };
+      state.phaseRoles = {
+        requirements: 'seniorConsultant', pm: 'manager',
+        development: 'consultant', training: 'consultant', manual: 'associate',
+      };
+      state.customWorkHours = { saasIntegration: 0, apiWebhook: 0, excelVba: 0 };
+      state.customWorkRoles = { saasIntegration: 'engineer', apiWebhook: 'engineer', excelVba: 'engineer' };
+      state.useSupportPack = false;
+      state.selectedSupportPack = null;
+
+      document.querySelectorAll('.package-card').forEach(function(c) { c.classList.remove('selected'); });
+      document.querySelector('[data-package="none"]').classList.add('selected');
+      document.querySelectorAll('.period-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelector('[data-months="12"]').classList.add('active');
+      dom.supportToggle.checked = false;
+      dom.supportPackArea.classList.remove('visible');
+      deselectAllPacks();
+
+      prevMonthly = prevMonthlyTax = prevAnnual = prevInitial = prevGrand = prevMobile = 0;
+
+      buildPhaseList();
+      buildCustomWorkList();
+      render();
+    }
+
+    // ==========================================
+    // Summary (clipboard)
+    // ==========================================
+    function generateSummary() {
+      var data = calculate();
+      var d = new Date();
+      var ds = d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate();
+      var L = [];
+      L.push('========================================');
+      L.push('JUST.DB 見積概算');
+      L.push('作成日: ' + ds);
+      L.push('========================================');
+      L.push('');
+      L.push('■ ライセンス');
+      L.push('  同時ログインライセンス: ' + state.licenseCount + ' ライセンス');
+      L.push('  月額: ' + yen(data.licenseCost) + '（税別）');
+      L.push('');
+      L.push('■ パッケージ');
+      L.push('  ' + data.packageName + ': ' + yen(data.packageCost) + '/月（税別）');
+      L.push('');
+      L.push('■ 月額費用');
+      L.push('  月額合計（税別）: ' + yen(data.monthlySubtotal));
+      L.push('  消費税（10%）: ' + yen(data.monthlyTax));
+      L.push('  月額合計（税込）: ' + yen(data.monthlyTotal));
+      L.push('  年間費用（税込）: ' + yen(data.annualTotal));
+      L.push('');
+      L.push('■ 構築費用（初期費用）');
+
+      if (data.usePackLogic) {
+        L.push('  ' + data.supportPackName + '（全フェーズ分）: ' + yen(data.supportPackCost));
+      } else {
+        for (var j = 0; j < data.phaseDetails.length; j++) {
+          var pd = data.phaseDetails[j];
+          if (pd.hours > 0) L.push('  ' + pd.name + ': ' + pd.hours + 'h × ' + fmt.format(pd.rate) + '円 = ' + yen(pd.cost));
+        }
+        if (data.supportPackCost > 0) L.push('  ' + data.supportPackName + ': ' + yen(data.supportPackCost));
+      }
+
+      // Custom work
+      var hasCustom = false;
+      for (var m = 0; m < data.customWorkDetails.length; m++) {
+        var cwd = data.customWorkDetails[m];
+        if (cwd.hours > 0) {
+          if (!hasCustom) { L.push(''); L.push('  【パック対象外作業】'); hasCustom = true; }
+          L.push('  ' + cwd.name + ': ' + cwd.hours + 'h × ' + fmt.format(cwd.rate) + '円 = ' + yen(cwd.cost));
+        }
+      }
+
+      L.push('  初期費用合計（税別）: ' + yen(data.initialSubtotal));
+      L.push('  初期費用合計（税込）: ' + yen(data.initialTotal));
+      L.push('');
+      L.push('■ 契約期間: ' + data.contractMonths + 'ヶ月');
+      L.push('  月額 × ' + data.contractMonths + 'ヶ月（税込）: ' + yen(data.contractMonthlyTotal));
+      L.push('');
+      L.push('■ 初年度総費用（税込）: ' + yen(data.grandTotal));
+      L.push('  （月額 × 12ヶ月 + 初期費用）');
+      L.push('');
+      L.push('========================================');
+      L.push('※ 本見積もりは概算です。正式なお見積もりは別途ご提示いたします。');
+      L.push('※ サポートパック対象：要件整理〜成果物作成の全フェーズ');
+      L.push('※ パック対象外：他社SaaS連携、API連携、VBA等');
+      L.push('※ 保守運用費用はサポートパックに含まれません');
+      L.push('========================================');
+      return L.join('\n');
+    }
+
+    // ==========================================
+    // Quote Sheet (御見積書)
+    // ==========================================
+    function populateQuoteSheet() {
+      var data = calculate();
+      var d = new Date();
+      var y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate();
+      var pad = function(n) { return ('0'+n).slice(-2); };
+      var dateStr = y + '-' + pad(m) + '-' + pad(day);
+      var numStr = 'EST-' + y + pad(m) + pad(day) + '-001';
+      // Validity: 30 days from today
+      var vd = new Date(d.getTime() + 30*24*60*60*1000);
+      var validStr = vd.getFullYear() + '-' + pad(vd.getMonth()+1) + '-' + pad(vd.getDate());
+
+      // Header meta
+      document.getElementById('quoteDate').textContent = dateStr;
+      document.getElementById('quoteNumber').textContent = numStr;
+      document.getElementById('quoteValidity').textContent = validStr;
+
+      // Contract period (start month ~ end month)
+      var startMonth = y + '年' + m + '月';
+      var endDate = new Date(y, m - 1 + data.contractMonths, 0);
+      var endMonth = endDate.getFullYear() + '年' + (endDate.getMonth() + 1) + '月';
+      document.getElementById('quoteContractPeriod').textContent =
+        startMonth + '〜' + endMonth + '（' + data.contractMonths + 'ヶ月）';
+
+      // Subject line
+      var subject = 'JUST.DB 導入費用';
+      if (state.selectedPackage !== 'none') {
+        subject = 'JUST.DB 導入費用（' + data.packageName + '）';
+      }
+      document.getElementById('quoteSubject').textContent = subject;
+
+      // Total amount (tax-included grand total)
+      document.getElementById('quoteTotalAmount').textContent = fmt.format(data.grandTotal);
+
+      // ---- Monthly Table (4 columns: 摘要 / 数量 / 単価 / 明細金額) ----
+      var mRows = '';
+      mRows += '<tr>' +
+        '<td class="col-item">JUST.DB ライセンス（同時ログイン ' + state.licenseCount + 'ユーザー）</td>' +
+        '<td class="col-qty">' + state.licenseCount + '</td>' +
+        '<td class="col-price">' + fmt.format(PRICES.license.unitPrice) + '</td>' +
+        '<td class="col-amount">' + fmt.format(data.licenseCost) + '</td></tr>';
+
+      if (state.selectedPackage !== 'none') {
+        mRows += '<tr>' +
+          '<td class="col-item">' + data.packageName + '</td>' +
+          '<td class="col-qty"></td>' +
+          '<td class="col-price">' + fmt.format(data.packageCost) + '</td>' +
+          '<td class="col-amount">' + fmt.format(data.packageCost) + '</td></tr>';
+      }
+
+      // Empty rows for formal look (5 total rows - monthly has max 2 data rows)
+      var mCount = state.selectedPackage !== 'none' ? 2 : 1;
+      for (var ei = mCount; ei < 5; ei++) {
+        mRows += '<tr class="empty-row"><td class="col-item"></td><td class="col-qty"></td><td class="col-price"></td><td class="col-amount"></td></tr>';
+      }
+
+      document.getElementById('quoteMonthlyBody').innerHTML = mRows;
+      document.getElementById('quoteMonthlySubtotal').textContent = fmt.format(data.monthlySubtotal) + '円';
+      document.getElementById('quoteMonthlyTax').textContent = fmt.format(data.monthlyTax) + '円';
+      document.getElementById('quoteMonthlyTotal').textContent = fmt.format(data.monthlyTotal) + '円';
+
+      // ---- Initial Cost Table ----
+      var iRows = '';
+      var iCount = 0;
+
+      if (data.usePackLogic) {
+        iRows += '<tr>' +
+          '<td class="col-item">' + data.supportPackName + '（要件整理〜成果物作成 全フェーズ）</td>' +
+          '<td class="col-qty">1</td>' +
+          '<td class="col-price">' + fmt.format(data.supportPackCost) + '</td>' +
+          '<td class="col-amount">' + fmt.format(data.supportPackCost) + '</td></tr>';
+        iCount++;
+      } else {
+        for (var i = 0; i < data.phaseDetails.length; i++) {
+          var pd = data.phaseDetails[i];
+          if (pd.hours > 0) {
+            iRows += '<tr>' +
+              '<td class="col-item">' + pd.name + '（' + pd.role + ' ' + pd.hours + 'h）</td>' +
+              '<td class="col-qty">' + pd.hours + '</td>' +
+              '<td class="col-price">' + fmt.format(pd.rate) + '</td>' +
+              '<td class="col-amount">' + fmt.format(pd.cost) + '</td></tr>';
+            iCount++;
+          }
+        }
+        if (data.supportPackCost > 0) {
+          iRows += '<tr>' +
+            '<td class="col-item">' + data.supportPackName + '</td>' +
+            '<td class="col-qty">1</td>' +
+            '<td class="col-price">' + fmt.format(data.supportPackCost) + '</td>' +
+            '<td class="col-amount">' + fmt.format(data.supportPackCost) + '</td></tr>';
+          iCount++;
+        }
+      }
+
+      // Custom work
+      for (var j = 0; j < data.customWorkDetails.length; j++) {
+        var cwd = data.customWorkDetails[j];
+        if (cwd.hours > 0) {
+          iRows += '<tr>' +
+            '<td class="col-item">' + cwd.name + '（' + cwd.role + ' ' + cwd.hours + 'h・パック対象外）</td>' +
+            '<td class="col-qty">' + cwd.hours + '</td>' +
+            '<td class="col-price">' + fmt.format(cwd.rate) + '</td>' +
+            '<td class="col-amount">' + fmt.format(cwd.cost) + '</td></tr>';
+          iCount++;
+        }
+      }
+
+      // Empty rows (at least 10 total)
+      for (var ej = iCount; ej < 10; ej++) {
+        iRows += '<tr class="empty-row"><td class="col-item"></td><td class="col-qty"></td><td class="col-price"></td><td class="col-amount"></td></tr>';
+      }
+
+      document.getElementById('quoteInitialBody').innerHTML = iRows;
+      document.getElementById('quoteInitialSubtotal').textContent = fmt.format(data.initialSubtotal) + '円';
+      document.getElementById('quoteInitialTax').textContent = fmt.format(data.initialTax) + '円';
+      document.getElementById('quoteInitialTotal').textContent = fmt.format(data.initialTotal) + '円';
+      document.getElementById('quoteInitialTaxBase').textContent = fmt.format(data.initialSubtotal) + '円';
+      document.getElementById('quoteInitialTaxAmount').textContent = fmt.format(data.initialTax) + '円';
+
+      // Grand total
+      document.getElementById('quoteGrandTotal').textContent = yen(data.grandTotal);
+      document.getElementById('quoteGrandBreakdown').textContent =
+        '月額 ' + yen(data.monthlyTotal) + ' × 12ヶ月 + 初期費用 ' + yen(data.initialTotal);
+    }
+
+    // ==========================================
+    // Date
+    // ==========================================
+    function setDate() {
+      var d = new Date();
+      var s = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+      dom.headerDate.textContent = s;
+      dom.resultsDate.textContent = '作成日: ' + s;
+    }
+
+    // ==========================================
+    // Init
+    // ==========================================
+    function init() {
+      cacheDom();
+      setDate();
+      buildPhaseList();
+      buildCustomWorkList();
+      buildSupportPacks();
+      initChart();
+      attachEvents();
+      render();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  })();
+  </script>
+</body>
+</html>
